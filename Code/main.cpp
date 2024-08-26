@@ -9,8 +9,8 @@
 #include <DHT.h>
 
 // WiFi credentials
-const char* ssid = "###########"; // Replace with your WiFi SSID
-const char* password = "#############"; // Replace with your WiFi Password
+const char* ssid = "###########"; // WiFi SSID
+const char* password = "#############"; // WiFi Password
 
 // HiveMQ broker settings
 const char* mqtt_server = "broker.hivemq.com"; // Public HiveMQ broker
@@ -22,7 +22,7 @@ const int mqtt_port = 1883; // MQTT port
 // Provide the API Key (required)
 #define API_KEY "YOUR_FIREBASE_API_KEY"
 
-// Provide the user Email and password that already registered or added in your project
+// Bro provide the user Email and password that already registered or added in your project
 #define USER_EMAIL "USER_EMAIL"
 #define USER_PASSWORD "USER_PASSWORD"
 
