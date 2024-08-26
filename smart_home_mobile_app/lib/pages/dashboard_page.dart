@@ -35,7 +35,7 @@ class DashboardPage extends StatelessWidget {
       body: Center(
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          width: 300,
+         
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.grey[900],
