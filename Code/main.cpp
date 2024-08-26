@@ -5,10 +5,12 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <FirebaseESP32.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
 
 // WiFi credentials
-const char* ssid = "YOUR_SSID"; // Replace with your WiFi SSID
-const char* password = "YOUR_PASSWORD"; // Replace with your WiFi Password
+const char* ssid = "###########"; // Replace with your WiFi SSID
+const char* password = "#############"; // Replace with your WiFi Password
 
 // HiveMQ broker settings
 const char* mqtt_server = "broker.hivemq.com"; // Public HiveMQ broker
@@ -29,12 +31,18 @@ FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 
+// Define DHT11 Sensor Parameters
+#define DHTPIN 15      // GPIO pin where the DHT sensor is connected
+#define DHTTYPE DHT11  // DHT11 sensor type
+
+DHT dht(DHTPIN, DHTTYPE); // Create an instance of the DHT sensor
+
 // Define pins using GPIO numbers
 #define IR_SENSOR 5     // GPIO 5
 #define SERVO_PIN 4     // GPIO 4
-#define BUZZER 13       // GPIO 13
-#define FIRE_SENSOR 14  // GPIO 14
-#define GAS_SENSOR 16   // GPIO 16
+#define BUZZER 13        // GPIO 13
+#define FIRE_SENSOR 14   // GPIO 14
+#define GAS_SENSOR 16    // GPIO 16
 
 // Define LED pins
 #define LED1 17         // GPIO 17
@@ -70,9 +78,14 @@ const String correctPassword = "1234"; // Set your password here
 String inputPassword;
 int attemptCount = 0;
 bool userDetected = false;
-bool isEmergency = false;
+bool emergencyActive = false;
 
-// Forward declarations
+// LED control states
+bool led1State = false;
+bool led2State = false;
+bool led3State = false;
+
+// Function declarations
 void setup();
 void loop();
 void connectToWiFi();
@@ -81,10 +94,8 @@ void greetUser();
 void openDoor();
 void triggerAlarm(String message);
 void sendNotification(String message);
-void mqttCallback(char* topic, byte* payload, unsigned int length);
-void handleKeypadInput();
+void callback(char* topic, byte* payload, unsigned int length);
 
-// Setup function
 void setup() {
   Serial.begin(115200);
   
@@ -105,25 +116,26 @@ void setup() {
   servo.attach(SERVO_PIN);
   servo.write(0); // Start with the door closed
   
+  // Initialize DHT sensor
+  dht.begin();
+  
   // Connect to WiFi
   connectToWiFi();
   
   // Set MQTT server and callback
   client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(mqttCallback);
+  client.setCallback(callback);
+  client.subscribe("smart_home/login/success"); // Subscribe to the login success topic
+  client.subscribe("smart_home/lights"); // Subscribe to control LED lights
   
-  // Firebase configuration
+  // Firebase setup (if needed)
   config.api_key = API_KEY;
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
   config.database_url = DATABASE_URL;
   Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
-  
-  Serial.println("Setup complete.");
 }
 
-// Loop function
 void loop() {
   // Ensure MQTT connection
   if (!client.connected()) {
@@ -131,34 +143,108 @@ void loop() {
   }
   client.loop();
 
+  // Read DHT sensor
+  float humidity = dht.readHumidity();
+  float temperature = dht.readTemperature(); // For Celsius
+
+  // Prepare sensor data
+  String temperatureStr = String(temperature);
+  String humidityStr = String(humidity);
+  String gasStr = String(digitalRead(GAS_SENSOR));
+  String fireStr = String(digitalRead(FIRE_SENSOR));
+
+  // Publish sensor data to MQTT server
+  client.publish("smart_home/sensors/temperature", temperatureStr.c_str());
+  client.publish("smart_home/sensors/humidity", humidityStr.c_str());
+  client.publish("smart_home/sensors/gas", gasStr.c_str());
+  client.publish("smart_home/sensors/fire", fireStr.c_str());
+
+  // Send sensor data to Firebase
+  Firebase.setString(firebaseData, "/sensors/temperature", temperatureStr);
+  Firebase.setString(firebaseData, "/sensors/humidity", humidityStr);
+  Firebase.setString(firebaseData, "/sensors/gas", gasStr);
+  Firebase.setString(firebaseData, "/sensors/fire", fireStr);
+
+  // Check if Firebase data is available
+  if (firebaseData.dataType() == "string") {
+    Serial.println("Firebase update successful");
+  } else {
+    Serial.println("Firebase update failed");
+  }
+
+  // Display sensor data on LCD if not in emergency state
+  if (!emergencyActive) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: ");
+    lcd.print(temperature);
+    lcd.print("C");
+    lcd.setCursor(0, 1);
+    lcd.print("Humidity: ");
+    lcd.print(humidity);
+    lcd.print("%");
+  }
+
+  // Update LED states
+  digitalWrite(LED1, led1State ? HIGH : LOW);
+  digitalWrite(LED2, led2State ? HIGH : LOW);
+  digitalWrite(LED3, led3State ? HIGH : LOW);
+
   // Check if IR sensor detects someone
   if (digitalRead(IR_SENSOR) == HIGH) {
-    if (!userDetected) {
-      userDetected = true;
-      greetUser();
-    }
+    userDetected = true;
+    greetUser();
   }
 
-  // Check fire and gas sensors
-if (digitalRead(FIRE_SENSOR) == HIGH || digitalRead(GAS_SENSOR) == HIGH) {
-    isEmergency = true;
-    triggerAlarm("Emergency detected! Alarm activated!");
-    if (digitalRead(GAS_SENSOR) == HIGH) {
-        openDoor(); // Open the door if gas is detected
-    }
-} else {
-    isEmergency = false;
-}
+  // Check fire sensor
+  if (digitalRead(FIRE_SENSOR) == HIGH) {
+    emergencyActive = true;
+    triggerAlarm("Fire detected! Alarm activated!");
+  }
+
+  // Check gas sensor
+  if (digitalRead(GAS_SENSOR) == HIGH) {
+    emergencyActive = true;
+    triggerAlarm("Gas detected! Opening door!");
+    openDoor(); // Open the door if gas is detected
+  }
 
   // Handle keypad input
-  if (userDetected) {
-    handleKeypadInput();
+  if (userDetected && !emergencyActive) {
+    char key = keypad.getKey();
+    if (key) {
+      inputPassword += key;
+      lcd.clear();
+      lcd.print("Input: " + inputPassword);
+      
+      // Check if the input password length is sufficient
+      if (inputPassword.length() == 4) {
+        if (inputPassword == correctPassword) {
+          openDoor();
+        } else {
+          attemptCount++;
+          lcd.clear();
+          lcd.print("Wrong Password!");
+          delay(2000);
+          inputPassword = ""; // Reset input
+          
+          if (attemptCount >= 3) {
+            sendNotification("3 failed attempts at the door!");
+            attemptCount = 0; // Reset attempt count
+          }
+        }
+      }
+    }
   }
 
-  delay(10); // Small delay to prevent loop from running too fast
+  // Reset emergency flag after handling
+  if (emergencyActive && !digitalRead(FIRE_SENSOR) && !digitalRead(GAS_SENSOR)) {
+    emergencyActive = false;
+    lcd.clear();
+  }
 }
 
-// Function to connect to WiFi
+
 void connectToWiFi() {
   Serial.print("Connecting to WiFi...");
   WiFi.begin(ssid, password);
@@ -169,7 +255,6 @@ void connectToWiFi() {
   Serial.println("Connected to WiFi");
 }
 
-// Function to reconnect to MQTT
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -185,17 +270,35 @@ void reconnect() {
   }
 }
 
-// Function to greet the user
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+
+  if (String(topic) == "smart_home/lights") {
+    if (message == "LED1_ON") {
+      led1State = true;
+    } else if (message == "LED1_OFF") {
+      led1State = false;
+    } else if (message == "LED2_ON") {
+      led2State = true;
+    } else if (message == "LED2_OFF") {
+      led2State = false;
+    } else if (message == "LED3_ON") {
+      led3State = true;
+    } else if (message == "LED3_OFF") {
+      led3State = false;
+    }
+  }
+}
+
 void greetUser() {
-  // Flash LEDs randomly
+  // Flash LEDs randomly (optional)
   for (int i = 0; i < 10; i++) {
     digitalWrite(LED1, HIGH);
-    digitalWrite(LED2, HIGH);
-    digitalWrite(LED3, HIGH);
     delay(100);
     digitalWrite(LED1, LOW);
-    digitalWrite(LED2, LOW);
-    digitalWrite(LED3, LOW);
     delay(100);
   }
 
@@ -214,18 +317,15 @@ void greetUser() {
   sendNotification("User detected at the door.");
 }
 
-// Function to open the door
 void openDoor() {
   servo.write(90); // Open the door
   delay(2000); // Keep the door open for 2 seconds
   servo.write(0); // Close the door
   inputPassword = ""; // Reset input
   attemptCount = 0; // Reset attempt count
-  userDetected = false; // Reset user detection
   sendNotification("Door opened successfully!");
 }
 
-// Function to trigger an alarm
 void triggerAlarm(String message) {
   digitalWrite(BUZZER, HIGH); // Activate buzzer
   delay(1000); // Alarm duration
@@ -233,73 +333,12 @@ void triggerAlarm(String message) {
   sendNotification(message);
 }
 
-// Function to send notifications via MQTT and Firebase
 void sendNotification(String message) {
   // Send notification to mobile app via MQTT
-  if (client.publish("smart_home/notifications", message.c_str())) {
-    Serial.println("MQTT Notification sent: " + message);
-  } else {
-    Serial.println("Failed to send MQTT notification");
-  }
-
+  client.publish("smart_home/notifications", message.c_str());
+  
   // Send notification to Firebase
-  if (Firebase.setString(firebaseData, "/notifications", message)) {
-    Serial.println("Firebase Notification sent: " + message);
-  } else {
-    Serial.println("Failed to send Firebase notification: " + firebaseData.errorReason());
-  }
-}
-
-// MQTT callback function
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("Message arrived on topic: ");
-    Serial.print(topic);
-    Serial.print(". Message: ");
-    String message;
-    for (int i = 0; i < length; i++) {
-        message += (char)payload[i];
-    }
-    Serial.println(message);
-
-    // Custom logic to display on LCD and Serial Monitor
-    if (!isEmergency) {
-        // If the LCD is not in use by emergency sensors, display the message
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("MQTT Msg:");
-        lcd.setCursor(0, 1);
-        lcd.print(message);
-        delay(3000); // Show the message for 3 seconds
-    } else {
-        Serial.println("LCD in use by emergency sensors. Message not displayed on LCD.");
-    }
-}
-
-// Function to handle keypad input
-void handleKeypadInput() {
-  char key = keypad.getKey();
-  if (key) {
-    inputPassword += key;
-    lcd.clear();
-    lcd.print("Input: ");
-    lcd.print(String(inputPassword.length(), '*')); // Display masked input
-
-    // Check if the input password length is sufficient
-    if (inputPassword.length() == 4) {
-      if (inputPassword == correctPassword) {
-        openDoor();
-      } else {
-        attemptCount++;
-        lcd.clear();
-        lcd.print("Wrong Password!");
-        delay(2000);
-        inputPassword = ""; // Reset input
-
-        if (attemptCount >= 3) {
-          sendNotification("3 failed attempts at the door!");
-          attemptCount = 0; // Reset attempt count
-        }
-      }
-    }
-  }
+  Firebase.setString(firebaseData, "/notifications", message);
+  
+  Serial.println("Notification: " + message);
 }
