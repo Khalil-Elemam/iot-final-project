@@ -59,7 +59,7 @@ class HistoryPage extends StatelessWidget {
                     ),
                     // Vertical Text
                     const Padding(
-                      padding: const EdgeInsets.only(left: 10),
+                      padding: EdgeInsets.only(left: 10),
                       child: RotatedBox(
                         quarterTurns: 3,
                         child: Text(
