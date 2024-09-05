@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "251518944103",
-    "project_id": "smart-home-39bca",
-    "storage_bucket": "smart-home-39bca.appspot.com"
+    "project_number": "129731850885",
+    "project_id": "tats-660da",
+    "storage_bucket": "tats-660da.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:251518944103:android:407bb658ee1dbf6ab365c2",
+        "mobilesdk_app_id": "1:129731850885:android:dbe707a3247008d1e7afec",
         "android_client_info": {
-          "package_name": "com.example.smart_home_mobile_app"
+          "package_name": "com.khali.slownien"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAWolqYxd6qzUVw3x9-BbH3F9YByeJtid0"
+          "current_key": "AIzaSyB359QkesesdzmNsofjuMnwedQ1TB2lpFw"
         }
       ],
       "services": {
