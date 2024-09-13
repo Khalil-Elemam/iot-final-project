@@ -4,7 +4,7 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 
 class MqttService {
   final MqttServerClient client;
-  bool isConnected = false; // Add a flag to track the connection status
+  bool isConnected = false;
 
   MqttService({required String broker, required String clientId})
       : client = MqttServerClient(broker, clientId) {
@@ -21,25 +21,27 @@ class MqttService {
       }
       return;
     }
+
     try {
       final connMessage = MqttConnectMessage()
-          .withClientIdentifier(client.clientIdentifier) // Use clientIdentifier directly
+          .withClientIdentifier(client.clientIdentifier)
+          .withWillQos(MqttQos.atMostOnce)
           .startClean()
-          .keepAlivePeriod(20)
-          .withWillQos(MqttQos.atMostOnce);
-      client.connectionMessage = connMessage;
+          .keepAliveFor(20); // Correctly set the keep-alive period
+
+      client.connectionMessage = connMessage; // Assign the connection message
 
       await client.connect();
       isConnected = true; // Set the flag to true upon successful connection
+
       if (kDebugMode) {
         print('MQTT connected to ${client.server}');
       }
     } catch (e) {
+      isConnected = false; // Ensure the flag is reset if connection fails
       if (kDebugMode) {
         print('MQTT connection failed: $e');
       }
-      // Optionally, implement retry logic here
-      isConnected = false; // Ensure the flag is reset if connection fails
     }
   }
 
@@ -53,12 +55,34 @@ class MqttService {
     }
     client.subscribe(topic, qos);
     client.updates?.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
-      final MqttPublishMessage recMess =
-          messages[0].payload as MqttPublishMessage;
-      final String message =
-          MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
-      onMessage(message);
+      for (var message in messages) {
+        try {
+          final MqttPublishMessage recMess = message.payload as MqttPublishMessage;
+          final String messageString = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+          if (kDebugMode) {
+            print('Received message: $messageString on topic: ${message.topic}');
+          }
+          onMessage(messageString);
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error processing message: $e');
+          }
+        }
+      }
     });
+  }
+
+  void unsubscribe(String topic) {
+    if (!isConnected) {
+      if (kDebugMode) {
+        print('Cannot unsubscribe, not connected');
+      }
+      return;
+    }
+    client.unsubscribe(topic);
+    if (kDebugMode) {
+      print('Unsubscribed from topic: $topic');
+    }
   }
 
   void publish(String topic, String message,
@@ -72,6 +96,9 @@ class MqttService {
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
     client.publishMessage(topic, qos, builder.payload!);
+    if (kDebugMode) {
+      print('Published message: $message to topic: $topic');
+    }
   }
 
   static void onConnected() {
@@ -88,13 +115,9 @@ class MqttService {
 
   void disconnect() {
     client.disconnect();
-    isConnected = false; // Reset the flag upon disconnection
+    isConnected = false;
     if (kDebugMode) {
       print('MQTT disconnected manually');
     }
   }
-}
-
-extension on MqttConnectMessage {
-  keepAlivePeriod(int i) {}
 }

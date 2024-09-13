@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firebase integration
+import 'dart:async'; // For Timer
 import '../models/device_data.dart';
 import '../services/mqtt_service.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:fl_chart/fl_chart.dart'; // For charts
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -16,82 +16,39 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   late MqttService mqttService;
-  bool ledStatus1 = false;
-  bool ledStatus2 = false;
-  bool ledStatus3 = false;
-  Timer? _dataRefreshTimer;
-  Timer? _dataStorageTimer;
+  bool ledStatus1 = false; // Status for LED 1
+  bool ledStatus2 = false; // Status for LED 2
+  bool ledStatus3 = false; // Status for LED 3
 
   @override
-  void initState() {
-    super.initState();
-    mqttService = Provider.of<MqttService>(context, listen: false);
-    _subscribeToTopics();
-    _startDataRefreshTimer();
-    _startDataStorageTimer();
-  }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    mqttService = Provider.of<MqttService>(context);
+    final deviceData = Provider.of<DeviceData>(context, listen: false);
 
-  @override
-  void dispose() {
-    _unsubscribeFromTopics();
-    _stopDataRefreshTimer();
-    _stopDataStorageTimer();
-    super.dispose();
-  }
-
-  void _subscribeToTopics() {
-    mqttService.subscribe('slownien/smart_home/sensors', _handleSensorMessage);
-    mqttService.subscribe('slownien/smart_home/lights', _handleLightMessage);
-  }
-
-  void _unsubscribeFromTopics() {
     mqttService.unsubscribe('slownien/smart_home/sensors');
-    mqttService.unsubscribe('slownien/smart_home/lights');
-  }
+    mqttService.subscribe('slownien/smart_home/sensors', (message) {
+       if (kDebugMode) {
+         print('Received MQTT message: $message');
+       }  // Log the message
+      
+      final data = message.split(',');
+        
+        deviceData.updateData(
+          data[0], // Temperature
+          data[1], // Humidity
+          data[2] == '1' ? 'Danger' : 'Safe', // Fire status
+          data[3] == '1' ? 'Danger' : 'Safe', // Gas status
+        );
+     
+    });
 
-  void _handleSensorMessage(String message) {
-      final deviceData = Provider.of<DeviceData>(context, listen: false);
-      try {
-          _parseSensorData(message, deviceData);
-      } catch (e) {
-          _showErrorDialog('Failed to process sensor data.');
+     // Subscribe to the lights topic
+    mqttService.subscribe('slownien/smart_home/lights', (message) {
+      if (kDebugMode) {
+        print('Received MQTT message: $message');
       }
-  }
-
-  void _showErrorDialog(String message) {
-      showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-              title: const Text('Error'),
-              content: Text(message),
-              actions: [
-                  TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('OK'),
-                  ),
-              ],
-          ),
-      );
-  }
-
-  void _parseSensorData(String message, DeviceData deviceData) {
-      try {
-          final data = message.split(',');
-          deviceData.updateData(
-              double.parse(data[0]), // Temperature
-              double.parse(data[1]), // Humidity
-              data[2] == '1' ? 'Danger' : 'Safe', // Fire status
-              data[3] == '1' ? 'Danger' : 'Safe', // Gas status
-          );
-      } catch (e) {
-          if (kDebugMode) {
-              print('Error processing sensor message: $e');
-          }
-      }
-  }
-
-  void _handleLightMessage(String message) {
-    try {
+      // Map MQTT messages to corresponding LED statuses
       bool newStatus1 = ledStatus1;
       bool newStatus2 = ledStatus2;
       bool newStatus3 = ledStatus3;
@@ -110,6 +67,7 @@ class _DashboardPageState extends State<DashboardPage> {
         newStatus3 = false;
       }
 
+      // Update state only if there's a change
       if (newStatus1 != ledStatus1 || newStatus2 != ledStatus2 || newStatus3 != ledStatus3) {
         setState(() {
           ledStatus1 = newStatus1;
@@ -117,89 +75,67 @@ class _DashboardPageState extends State<DashboardPage> {
           ledStatus3 = newStatus3;
         });
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error processing light message: $e');
-      }
-    }
-  }
-
-  void _startDataRefreshTimer() {
-    _dataRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) => _refreshData());
-  }
-
-  void _stopDataRefreshTimer() {
-    if (_dataRefreshTimer != null && _dataRefreshTimer!.isActive) {
-      _dataRefreshTimer!.cancel();
-    }
+    });
   }
 
   Future<void> _refreshData() async {
     final deviceData = Provider.of<DeviceData>(context, listen: false);
+
     mqttService.subscribe('slownien/smart_home/sensors', (message) {
-      deviceData.fetchData(message);
+      final data = message.split(',');
+      deviceData.updateData(
+        data[0], // temperature
+        data[1], // humidity
+        data[2] == '1' ? 'Danger' : 'Safe', // fire status
+        data[3] == '1' ? 'Danger' : 'Safe', // gas status
+      );
     });
   }
 
-  void _startDataStorageTimer() {
-    _dataStorageTimer = Timer.periodic(const Duration(hours: 1), (_) {
-      final deviceData = Provider.of<DeviceData>(context, listen: false);
-      _storeDataToFirebase(deviceData.temperature, deviceData.humidity);
-    });
-  }
-
-  void _stopDataStorageTimer() {
-    if (_dataStorageTimer != null && _dataStorageTimer!.isActive) {
-      _dataStorageTimer!.cancel();
-    }
-  }
-
-  void _storeDataToFirebase(double temperature, double humidity) {
-    try {
-      final data = {
-        'temperature': temperature,
-        'humidity': humidity,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-      FirebaseFirestore.instance.collection('sensor_data').add(data);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error storing data to Firebase: $e');
-      }
-    }
-  }
-
-  void _updateLedStatus(int ledNumber, bool newStatus) {
-    setState(() {
-      if (ledNumber == 1) {
-        ledStatus1 = newStatus;
-        mqttService.publish('slownien/smart_home/lights', newStatus ? 'LED1_ON' : 'LED1_OFF');
-      } else if (ledNumber == 2) {
-        ledStatus2 = newStatus;
-        mqttService.publish('slownien/smart_home/lights', newStatus ? 'LED2_ON' : 'LED2_OFF');
-      } else if (ledNumber == 3) {
-        ledStatus3 = newStatus;
-        mqttService.publish('slownien/smart_home/lights', newStatus ? 'LED3_ON' : 'LED3_OFF');
-      }
-    });
-  }
 
   void toggleLed(int ledNumber) {
-    if (ledNumber == 1) {
-      _updateLedStatus(ledNumber, !ledStatus1);
-    } else if (ledNumber == 2) {
-      _updateLedStatus(ledNumber, !ledStatus2);
-    } else if (ledNumber == 3) {
-      _updateLedStatus(ledNumber, !ledStatus3);
-    }
+    setState(() {
+      if (ledNumber == 1) {
+        ledStatus1 = !ledStatus1;
+        mqttService.publish('slownien/smart_home/lights', ledStatus1 ? 'LED1_ON' : 'LED1_OFF');
+      } else if (ledNumber == 2) {
+        ledStatus2 = !ledStatus2;
+        mqttService.publish('slownien/smart_home/lights', ledStatus2 ? 'LED2_ON' : 'LED2_OFF');
+      } else if (ledNumber == 3) {
+        ledStatus3 = !ledStatus3;
+        mqttService.publish('slownien/smart_home/lights', ledStatus3 ? 'LED3_ON' : 'LED3_OFF');
+      }
+    });
+  }
+
+  // Function to store temperature and humidity data to Firebase every hour
+  void storeDataToFirebase(double temperature, double humidity) {
+    final data = {
+      'temperature': temperature,
+      'humidity': humidity,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    FirebaseFirestore.instance.collection('sensor_data').add(data);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Timer.periodic(const Duration(hours: 1), (timer) {
+      final deviceData = Provider.of<DeviceData>(context, listen: false);
+      storeDataToFirebase(deviceData.temperature as double, deviceData.humidity as double);
+    });
+
+    
+
   }
 
   @override
   Widget build(BuildContext context) {
     final deviceData = Provider.of<DeviceData>(context);
 
-    return Scaffold(
-appBar: AppBar(
+      return Scaffold(
+        appBar: AppBar(
           title: const Text('Dashboard'),
           backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
           actions: [
@@ -354,9 +290,14 @@ appBar: AppBar(
               ),
             ],
           ),
-        ),   
-      ),    
-     );
+        ),
+      ),
+        floatingActionButton: FloatingActionButton(
+        onPressed: () => _refreshData(), // Manual refresh with FAB
+        backgroundColor: Theme.of(context).primaryColor,
+        child: const Icon(Icons.refresh),
+      ),
+    );
   }
 
   Widget _buildLedButton(String roomName, bool isActive, int ledNumber) {
@@ -390,6 +331,7 @@ appBar: AppBar(
   Widget _buildStatusRow(String label, String value, Color backgroundColor, Color textColor) {
     return Consumer<DeviceData>(
       builder: (context, deviceData, child) {
+
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
