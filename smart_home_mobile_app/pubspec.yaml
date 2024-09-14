@@ -44,6 +44,8 @@ dependencies:
   kf_drawer: ^1.2.1
   fl_chart: ^0.69.0
   cloud_firestore: ^5.4.0
+  flutter_local_notifications: ^17.2.2
+  firebase_database: ^11.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

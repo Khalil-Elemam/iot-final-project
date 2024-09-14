@@ -9,8 +9,8 @@
 #include <DHT.h>
 
 // --------------------- WiFi Credentials ---------------------
-const char *ssid = "Moataz's A15";        // Replace with your WiFi SSID
-const char *password = "z87sm7miy8eawzw"; // Replace with your WiFi Password
+const char *ssid = "realme 10";            // Replace with your WiFi SSID
+const char *password = "Kh@lil_100_$_100"; // Replace with your WiFi Password
 
 // --------------------- MQTT Broker Settings ---------------------
 const char *mqtt_server = "broker.hivemq.com"; // Public HiveMQ broker
@@ -54,8 +54,8 @@ char keys[ROWS][COLS] = {
     {'7', '8', '9', 'C'},
     {'*', '0', '#', 'D'}};
 
-byte rowPins[ROWS] = {13, 12, 14, 27}; // Connect to the row pinouts of the keypad
-byte colPins[COLS] = {26, 25, 33, 32}; // Connect to the column pinouts of the keypad
+byte rowPins[ROWS] = {27, 26, 25, 33}; // Connect to the row pinouts of the keypad
+byte colPins[COLS] = {32, 35, 34, 39}; // Connect to the column pinouts of the keypad
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
@@ -70,7 +70,7 @@ PubSubClient client(espClient);
 FirebaseData firebaseData;
 
 // --------------------- Variables ---------------------
-const String correctPassword = "6666"; // Set your password here
+const String correctPassword = "1234"; // Set your password here
 String inputPassword;
 int attemptCount = 0;
 bool userDetected = false;
@@ -91,8 +91,6 @@ void connectToWiFi();
 void handleKeypadInput();
 void reconnect();
 void greetUser();
-void validatePassword();
-void handleKeypadInput();
 void openDoor();
 void triggerAlarm(String message);
 void sendNotification(String message);
@@ -112,8 +110,16 @@ void setup()
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
-  pinMode(34, INPUT);
-  pinMode(39, INPUT);
+
+  // Initialize keypad pins as inputs with pull-ups
+  for (int i = 0; i < ROWS; i++)
+  {
+    pinMode(rowPins[i], INPUT_PULLUP); // Using INPUT_PULLUP to avoid floating state
+  }
+  for (int i = 0; i < COLS; i++)
+  {
+    pinMode(colPins[i], INPUT_PULLUP); // Using INPUT_PULLUP to avoid floating state
+  }
 
   // Initialize LEDs to off
   digitalWrite(LED1, LOW);
@@ -225,7 +231,6 @@ void loop()
       Serial.println("User detected by TCRT sensor.");
       greetUser();
     }
-    handleKeypadInput();
   }
   else
   {
@@ -235,6 +240,8 @@ void loop()
       Serial.println("User no longer detected by TCRT sensor.");
     }
   }
+
+  handleKeypadInput();
 
   // Prepare sensor data
   String temperatureStr = String(temperature);
@@ -350,6 +357,7 @@ void loop()
       openDoor(); // Open the door if gas is detected
     }
   }
+  Serial.println("should be false ==> " + emergencyActive);
   // Handle keypad input
 
   // Reset emergency flag after handling
@@ -574,9 +582,7 @@ void sendNotification(String message)
 
 void handleKeypadInput()
 {
-  Serial.println("Waiting for keypad input...");
-
-  while (userDetected && inputPassword.length() < 4) // Continue reading until 4 characters are entered
+  if (userDetected)
   {
     char key = keypad.getKey();
     if (key)
@@ -589,44 +595,37 @@ void handleKeypadInput()
       lcd.print("Input: ");
       lcd.print(inputPassword);
 
-      if (inputPassword.length() == 4) // Check the length after each keypress
+      // Check if the input password length is sufficient
+      if (inputPassword.length() == 4)
       {
-        break; // Exit loop once 4 digits are entered
+        if (inputPassword == correctPassword)
+        {
+          Serial.println("Correct password entered.");
+          lcd.clear();
+          lcd.print("Password Correct");
+          openDoor();
+          inputPassword = ""; // Clear input after successful entry
+        }
+        else
+        {
+          attemptCount++;
+          Serial.println("Wrong password entered.");
+          lcd.clear();
+          lcd.print("Wrong Password!");
+          delay(2000);
+          inputPassword = ""; // Reset input
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Enter Password:");
+
+          if (attemptCount >= 3)
+          {
+            Serial.println("3 failed attempts. Sending notification.");
+            sendNotification("3 failed attempts at the door!");
+            attemptCount = 0; // Reset attempt count
+          }
+        }
       }
-    }
-  }
-
-  // Once 4 characters are entered, validate the password
-  validatePassword();
-}
-
-void validatePassword()
-{
-  if (inputPassword == correctPassword)
-  {
-    Serial.println("Correct password entered.");
-    lcd.clear();
-    lcd.print("Password Correct");
-    openDoor();
-    inputPassword = ""; // Clear input after successful entry
-  }
-  else
-  {
-    attemptCount++;
-    Serial.println("Wrong password entered.");
-    lcd.clear();
-    lcd.print("Wrong Password!");
-    delay(2000);
-    inputPassword = ""; // Reset input
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Enter Password:");
-
-    if (attemptCount >= 3)
-    {
-      Serial.println("3 failed attempts. Sending notification.");
-      sendNotification("3 failed attempts at the door!");
-      attemptCount = 0; // Reset attempt count
     }
   }
 }

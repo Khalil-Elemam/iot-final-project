@@ -1,0 +1,15 @@
+Task ID, Task Description, Assigned To, Status, Deadline
+1, Project leadership and overall coordination, Ahmed Ayman Fathallah, Completed, 2024-09-14
+2, Define project architecture and task allocation, Ahmed Ayman Fathallah, Completed, 2024-08-15
+3, ESP32 microcontroller setup and sensor connections, Moataz Mohamed Abdelhamid Ansary, Completed, 2024-08-20
+4, Embedded systems programming (ESP32 firmware), Ahmed Ayman Fathallah, Completed, 2024-09-13
+5, Hardware troubleshooting and sensor optimization, Moataz Mohamed Abdelhamid Ansary, Completed, 2024-09-10
+6," Implement core C++ functions (WiFi, keypad, door control)", Ahmed Ayman Fathallah, Completed, 2024-09-10
+7," Design and develop Flutter UI (dashboard, signup, login)", Khalil Lotfy Abd-Allah, Completed, 2024-09-11
+8, Integrate MQTT services with Flutter application, Khalil Lotfy Abd-Allah, Completed, 2024-09-9
+9, Implement Firebase authentication in Flutter app, Khalil Lotfy Abd-Allah, Completed, 2024-09-8
+10, Setup notification system for failed attempts (C++ Flutter), Ahmed Ayman Fathallah, Completed, 2024-09-5
+11, Develop service classes for MQTT Firebase and sensor control, Khalil Lotfy Abd-Allah, Completed, 2024-09-14
+12," Test hardware and software integration (sensors, Flutter app)"," Ahmed,  Moataz, Khalil", Completed, 2024-09-14
+13, Finalize C++ code and optimize performance, Ahmed Ayman Fathallah, Completed, 2024-09-8
+14, Finalize Flutter app and prepare for testing, Khalil Lotfy Abd-Allah, Completed, 2024-09-14

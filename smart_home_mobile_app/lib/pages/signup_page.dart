@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '/services/firebase_service.dart';
 
-
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
 
@@ -13,7 +12,8 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   String _errorMessage = '';
   bool _isLoading = false;
 
@@ -38,10 +38,16 @@ class _SignupPageState extends State<SignupPage> {
       _isLoading = true;
       _errorMessage = '';
     });
-    if (!_validateInputs()) return;
+    if (!_validateInputs()) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
-      final firebaseService = Provider.of<FirebaseService>(context, listen: false);
+      final firebaseService =
+          Provider.of<FirebaseService>(context, listen: false);
       await firebaseService.createUserWithEmailAndPassword(
         _emailController.text,
         _passwordController.text,
@@ -50,6 +56,7 @@ class _SignupPageState extends State<SignupPage> {
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
+        _isLoading = false;
       });
     } finally {
       setState(() {

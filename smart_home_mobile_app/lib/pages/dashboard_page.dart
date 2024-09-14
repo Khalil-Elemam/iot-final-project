@@ -50,44 +50,44 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _handleSensorMessage(String message) {
-      final deviceData = Provider.of<DeviceData>(context, listen: false);
-      try {
-          _parseSensorData(message, deviceData);
-      } catch (e) {
-          _showErrorDialog('Failed to process sensor data.');
-      }
+    final deviceData = Provider.of<DeviceData>(context, listen: false);
+    try {
+      _parseSensorData(message, deviceData);
+    } catch (e) {
+      _showErrorDialog('Failed to process sensor data.');
+    }
   }
 
   void _showErrorDialog(String message) {
-      showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-              title: const Text('Error'),
-              content: Text(message),
-              actions: [
-                  TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('OK'),
-                  ),
-              ],
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
           ),
-      );
+        ],
+      ),
+    );
   }
 
   void _parseSensorData(String message, DeviceData deviceData) {
-      try {
-          final data = message.split(',');
-          deviceData.updateData(
-              double.parse(data[0]), // Temperature
-              double.parse(data[1]), // Humidity
-              data[2] == '1' ? 'Danger' : 'Safe', // Fire status
-              data[3] == '1' ? 'Danger' : 'Safe', // Gas status
-          );
-      } catch (e) {
-          if (kDebugMode) {
-              print('Error processing sensor message: $e');
-          }
+    try {
+      final data = message.split(',');
+      deviceData.updateData(
+        double.parse(data[0]), // Temperature
+        double.parse(data[1]), // Humidity
+        data[2] == '1' ? 'Danger' : 'Safe', // Fire status
+        data[3] == '1' ? 'Danger' : 'Safe', // Gas status
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error processing sensor message: $e');
       }
+    }
   }
 
   void _handleLightMessage(String message) {
@@ -110,7 +110,9 @@ class _DashboardPageState extends State<DashboardPage> {
         newStatus3 = false;
       }
 
-      if (newStatus1 != ledStatus1 || newStatus2 != ledStatus2 || newStatus3 != ledStatus3) {
+      if (newStatus1 != ledStatus1 ||
+          newStatus2 != ledStatus2 ||
+          newStatus3 != ledStatus3) {
         setState(() {
           ledStatus1 = newStatus1;
           ledStatus2 = newStatus2;
@@ -125,7 +127,8 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _startDataRefreshTimer() {
-    _dataRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) => _refreshData());
+    _dataRefreshTimer =
+        Timer.periodic(const Duration(minutes: 1), (_) => _refreshData());
   }
 
   void _stopDataRefreshTimer() {
@@ -173,13 +176,16 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {
       if (ledNumber == 1) {
         ledStatus1 = newStatus;
-        mqttService.publish('slownien/smart_home/lights', newStatus ? 'LED1_ON' : 'LED1_OFF');
+        mqttService.publish(
+            'slownien/smart_home/lights', newStatus ? 'LED1_ON' : 'LED1_OFF');
       } else if (ledNumber == 2) {
         ledStatus2 = newStatus;
-        mqttService.publish('slownien/smart_home/lights', newStatus ? 'LED2_ON' : 'LED2_OFF');
+        mqttService.publish(
+            'slownien/smart_home/lights', newStatus ? 'LED2_ON' : 'LED2_OFF');
       } else if (ledNumber == 3) {
         ledStatus3 = newStatus;
-        mqttService.publish('slownien/smart_home/lights', newStatus ? 'LED3_ON' : 'LED3_OFF');
+        mqttService.publish(
+            'slownien/smart_home/lights', newStatus ? 'LED3_ON' : 'LED3_OFF');
       }
     });
   }
@@ -199,59 +205,67 @@ class _DashboardPageState extends State<DashboardPage> {
     final deviceData = Provider.of<DeviceData>(context);
 
     return Scaffold(
-appBar: AppBar(
-          title: const Text('Dashboard'),
-          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.person), // Profile Icon
-              onPressed: () {
-                Navigator.pushNamed(context, '/profile'); // Navigates to the Profile Page
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person), // Profile Icon
+            onPressed: () {
+              Navigator.pushNamed(
+                  context, '/profile'); // Navigates to the Profile Page
+            },
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+              ),
+              child: const Text(
+                'Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.pushNamed(context, '/settings');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('E.History'),
+              onTap: () {
+                Navigator.pushNamed(context, '/history');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pushNamed(context, '/login');
               },
             ),
           ],
         ),
-        drawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: <Widget>[
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                ),
-                child: const Text(
-                  'Menu',
-                  style: TextStyle(color: Colors.white, fontSize: 24),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.home),
-                title: const Text('Home'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('Settings'),
-                onTap: () {
-                  Navigator.pushNamed(context, '/settings');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.history),
-                title: const Text('E.History'),
-                onTap: () {
-                  Navigator.pushNamed(context, '/history');
-                },
-              ),
-            ],
-          ),
-        ),
-        body: RefreshIndicator(
-          onRefresh: _refreshData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
               Container(
@@ -265,19 +279,38 @@ appBar: AppBar(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _buildStatusRow('Temperature', '${deviceData.temperature}°', Colors.red[700]!, Colors.white),
+                        _buildStatusRow(
+                            'Temperature',
+                            '${deviceData.temperature}°',
+                            Colors.red[700]!,
+                            Colors.white),
                         const SizedBox(height: 16),
-                        _buildStatusRow('Humidity', '${deviceData.humidity}%', Colors.blue[700]!, Colors.white),
+                        _buildStatusRow('Humidity', '${deviceData.humidity}%',
+                            Colors.blue[700]!, Colors.white),
                         const SizedBox(height: 16),
-                        _buildStatusRow('Fire Status', deviceData.fireStatus, deviceData.fireStatus == 'Danger' ? Colors.red[700]! : Colors.green[700]!, Colors.white),
+                        _buildStatusRow(
+                            'Fire Status',
+                            deviceData.fireStatus,
+                            deviceData.fireStatus == 'Danger'
+                                ? Colors.red[700]!
+                                : Colors.green[700]!,
+                            Colors.white),
                         const SizedBox(height: 16),
-                        _buildStatusRow('Gas Status', deviceData.gasStatus, deviceData.gasStatus == 'Danger' ? Colors.red[700]! : Colors.green[700]!, Colors.white),
+                        _buildStatusRow(
+                            'Gas Status',
+                            deviceData.gasStatus,
+                            deviceData.gasStatus == 'Danger'
+                                ? Colors.red[700]!
+                                : Colors.green[700]!,
+                            Colors.white),
                         const SizedBox(height: 16),
                         Divider(color: Colors.grey[400]),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('LED Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            const Text('LED Status',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
                             Row(
                               children: [
                                 _buildLedButton('Room 1', ledStatus1, 1),
@@ -307,7 +340,9 @@ appBar: AppBar(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Temperature & Humidity Over Time', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text('Temperature & Humidity Over Time',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         SizedBox(
                           height: 200,
@@ -354,9 +389,9 @@ appBar: AppBar(
               ),
             ],
           ),
-        ),   
-      ),    
-     );
+        ),
+      ),
+    );
   }
 
   Widget _buildLedButton(String roomName, bool isActive, int ledNumber) {
@@ -387,7 +422,8 @@ appBar: AppBar(
     );
   }
 
-  Widget _buildStatusRow(String label, String value, Color backgroundColor, Color textColor) {
+  Widget _buildStatusRow(
+      String label, String value, Color backgroundColor, Color textColor) {
     return Consumer<DeviceData>(
       builder: (context, deviceData, child) {
         return Container(
@@ -405,7 +441,10 @@ appBar: AppBar(
               ),
               Text(
                 value,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textColor),
               ),
             ],
           ),
