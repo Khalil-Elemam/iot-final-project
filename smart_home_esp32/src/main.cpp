@@ -9,16 +9,16 @@
 #include <DHT.h>
 
 // --------------------- WiFi Credentials ---------------------
-const char *ssid = "Moataz's A15";        // Replace with your WiFi SSID
-const char *password = "z87sm7miy8eawzw"; // Replace with your WiFi Password
+const char *ssid = "PbS";        // Replace with your WiFi SSID
+const char *password = "0222BananaL0L"; // Replace with your WiFi Password
 
 // --------------------- MQTT Broker Settings ---------------------
 const char *mqtt_server = "broker.hivemq.com"; // Public HiveMQ broker
 const int mqtt_port = 1883;                    // MQTT port
 
 // --------------------- Firebase Configuration ---------------------
-#define DATABASE_URL "https://smart-home-39bca-default-rtdb.firebaseio.com/"
-#define API_KEY "AIzaSyAWolqYxd6qzUVw3x9-BbH3F9YByeJtid0"
+#define DATABASE_URL "https://tats-660da-default-rtdb.europe-west1.firebasedatabase.app/"
+#define API_KEY "AIzaSyB359QkesesdzmNsofjuMnwedQ1TB2lpFw"
 #define USER_EMAIL "admin@yahoo.com"
 #define USER_PASSWORD "124567"
 
@@ -37,8 +37,8 @@ DHT dht(DHTPIN, DHTTYPE); // Create an instance of the DHT sensor
 #define TCRT_SENSOR_PIN 36 // GPIO 36
 #define SERVO_PIN 4        // GPIO 4
 #define BUZZER 5           // GPIO 5
-#define FIRE_SENSOR 23     // GPIO 23
-#define GAS_SENSOR 16      // GPIO 16
+#define FIRE_SENSOR 39     // GPIO 39
+#define GAS_SENSOR 34     // GPIO 34
 
 // LED pins
 #define LED1 17 // GPIO 17
