@@ -9,8 +9,8 @@
 #include <DHT.h>
 
 // --------------------- WiFi Credentials ---------------------
-const char *ssid = "PbS";        // Replace with your WiFi SSID
-const char *password = "0222BananaL0L"; // Replace with your WiFi Password
+const char *ssid = "############";        // Replace with your WiFi SSID
+const char *password = "##########"; // Replace with your WiFi Password
 
 // --------------------- MQTT Broker Settings ---------------------
 const char *mqtt_server = "broker.hivemq.com"; // Public HiveMQ broker
